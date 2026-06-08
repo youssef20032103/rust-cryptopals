@@ -1,0 +1,9 @@
+[package]
+name = "hello_rust"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+aes = "0.9.1"
+generic-array = "1.4.3" 
+rand = { version = "0.10.1", features = ["std"] }

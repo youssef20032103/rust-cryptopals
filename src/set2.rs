@@ -25,26 +25,33 @@ pub fn _padding(text : String){
 }
 
 //-----------------------------------------------------------Challenge 10
-pub fn _cbc_file_decryption(file: &str, key: String)-> String{
+pub fn _cbc_file_decryption(file: &str, key: String) -> Result<String, String> {
+    let key_bytes = key.as_bytes();
+
+    if key_bytes.len() != 16 {
+        return Err("Key must be 16 bytes".to_string());
+    }
+
+    let mut _bkey = [0u8; 16];
+    _bkey.copy_from_slice(key_bytes);
+
     let content64 = aes_alg::_convert_file(file);
     let content = helper::_u8_to_hex(content64);
-    cbc_alg::_cbc_decrypt(content, [0u8;16], key)
+
+    Ok(cbc_alg::_cbc_string_decrypt(content, [0u8;16], _bkey))
 }
 
 
 //-----------------------------------------------------------Challenge 11
-struct Key{
-    string_litteral : String,
-    byte_list : Vec<u8>
-}
 
 
-fn _aes_key()-> Key{
+
+fn _aes_key()-> [u8;16]{
     let mut key  = [0u8;16];
     rand::fill(&mut key);
-    (String::from_utf8(key), key)
+    key
 }
-fn _encryption_oracle(text : String){
+fn _encryption_oracle(text : String) -> String{
     let content = text.into_bytes();
     let mut r = rand::rng();
     let pre = r.random_range(5..=10);
@@ -57,14 +64,20 @@ fn _encryption_oracle(text : String){
     for _ in 0..post{
         post_slice.push(r.random::<u8>());
     }
-    pre_slice.extend(content);
-    pre_slice.extend(post_slice);
+    let mut data : Vec<u8> = Vec::new();
+    data.extend(pre_slice);
+    data.extend(content);
+    data.extend(post_slice);
+    
+    
     let use_ecb = rand::random::<bool>();
     let key = _aes_key();
     if use_ecb{
-        aes_alg::_aes_encrypt(text, key)
+        aes_alg::_aes_encrypt(data, key)
     }
     else { //EBC
+        let mut iv = [0u8;16];
+        rand::fill(&mut iv);
+        cbc_alg::_cbc_encrypt(data, iv, key)
         }
-    
 }

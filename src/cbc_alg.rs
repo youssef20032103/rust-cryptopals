@@ -33,17 +33,22 @@ pub fn _decrypt(text : Vec<u8>, key : [u8;16], c:[u8;16]) -> Vec<u8>{
     res
 }
 
-pub fn _cbc_encrypt(text: String, c:[u8;16], key: String )-> String{
-    let mut content = text.as_bytes().to_vec();
-    content = aes_alg::_pkcs7_padding(content, 16);
-    let _b_key: [u8;16] = key.as_bytes().try_into().unwrap();
-    let res = _encrypt(content, _b_key, c);
+pub fn _cbc_encrypt(text: Vec<u8>, c:[u8;16], key: [u8;16] )-> String{
+    let content = aes_alg::_pkcs7_padding(text, 16);
+    let res = _encrypt(content, key, c);
     helper::_u8_to_hex(res)   
 }
-pub fn _cbc_decrypt(text: String, c:[u8;16], key: String )-> String{
-    let content = helper::_hex_to_u8(text);
-    let _b_key: [u8;16] = key.as_bytes().try_into().unwrap();
-    let mut res = _decrypt(content, _b_key, c);
+pub fn _cbc_decrypt(text: Vec<u8>, c:[u8;16], key: [u8;16] )-> String{
+    let mut res = _decrypt(text, key, c);
     res = aes_alg::_pksc7_unpadding(res);
     String::from_utf8(res).unwrap()
+}
+
+pub fn _cbc_string_encrypt(text: String, c:[u8;16], key: [u8;16] )-> String{
+    let content = text.as_bytes().to_vec();
+    _cbc_encrypt(content, c, key)
+}
+pub fn _cbc_string_decrypt(text: String, c:[u8;16], key: [u8;16] )-> String{
+    let content = helper::_hex_to_u8(text);
+    _cbc_decrypt(content, c, key)
 }

@@ -319,20 +319,26 @@ pub fn _decrypt(text : Vec<u8>, key : [u8;16]) -> Vec<u8>{
     res
 }
 
-pub fn _aes_encrypt(text: String, key:String)-> String{
-    let mut content = text.as_bytes().to_vec();
-    content = _pkcs7_padding(content, 16);
-    let _bkey : [u8;16] = key.as_bytes().try_into().unwrap();
-    let result = _encrypt(content, _bkey);
+pub fn _aes_encrypt(text: Vec<u8>, key:[u8;16])-> String{
+    let content = _pkcs7_padding(text, 16);
+    let result = _encrypt(content, key);
     helper::_u8_to_hex(result)
 }
-
-pub fn _aes_decrypt(text: String, key: String) -> String{
-    let content = helper::_hex_to_u8(text);
-    let b_key : [u8;16] = key.as_bytes().try_into().unwrap();
-    let mut result = _decrypt(content, b_key);
+pub fn _aes_decrypt(text: Vec<u8>, key: [u8;16]) -> String{
+    let mut result = _decrypt(text, key);
     result = _pksc7_unpadding(result);
     String::from_utf8(result).unwrap()
+}
+
+
+pub fn _aes_string_encrypt(text: String, key:[u8;16])-> String{
+    let content = text.as_bytes().to_vec();
+    _aes_encrypt(content, key)
+}
+
+pub fn _aes_string_decrypt(text: String, key: [u8;16]) -> String{
+    let content = helper::_hex_to_u8(text);
+    _aes_decrypt(content, key)
 }
 
 

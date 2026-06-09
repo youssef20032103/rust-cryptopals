@@ -1,15 +1,13 @@
 
 const _HEX: &[u8;16] = b"0123456789abcdef";
 
-fn _ascii_hex_value(y: u8)-> u8{
-    if y < 'a' as u8{
-        return y - '0' as u8;
-    }
-    else if y < 'A' as u8{
-        return y - 'a' as u8 +10 ;
-    }
-    else {
-        return y - 'A' as u8 + 10;
+fn _ascii_hex_value(y: u8) -> u8 {
+    if y >= b'a' {
+        y - b'a' + 10
+    } else if y >= b'A' {
+        y - b'A' + 10
+    } else {
+        y - b'0'
     }
 }
 

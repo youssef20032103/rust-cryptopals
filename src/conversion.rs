@@ -83,6 +83,7 @@ pub fn _xor(a : String, b : String) -> String{
 }
 
 //Challenge 3
+#[allow(dead_code)]
 struct ResultSet{
      score: i32,
      text : String,
@@ -90,7 +91,7 @@ struct ResultSet{
 }
 
 
-pub fn _single_xor(l: Vec<u8>) -> ResultSet{
+fn _single_xor(l: Vec<u8>) -> ResultSet{
     let freq : Vec<char> = "etaoin shrdlu".chars().collect();
 
     let mut max = 0;

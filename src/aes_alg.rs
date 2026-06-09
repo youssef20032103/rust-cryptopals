@@ -128,9 +128,12 @@ pub fn _pkcs7_padding(mut text : Vec<u8>, size: usize) -> Vec<u8>{
     }
     text
 }
-pub fn _pksc7_unpadding(mut text: Vec<u8>)-> Vec<u8>{
-    let _pad_len  = *text.last().unwrap() as usize;
-    text.truncate(text.len() - _pad_len);
+pub fn _pksc7_unpadding(mut text: Vec<u8>) -> Vec<u8> {
+    let pad_len = *text.last().unwrap() as usize;
+    if pad_len == 0 || pad_len > text.len() {
+        return vec![];
+    }
+    text.truncate(text.len() - pad_len);
     text
 }
 
@@ -153,7 +156,6 @@ pub fn _sub_byte(x : [u8;16]) -> [u8;16]{
     for i in 0..16{
         res[i] = _lookup(x[i]);
     }
-    println!("Sub byte result: {:02x?}",res);
     res
 }
 pub fn _reverse_sub_byte(x : [u8;16]) -> [u8;16]{
@@ -161,7 +163,6 @@ pub fn _reverse_sub_byte(x : [u8;16]) -> [u8;16]{
     for i in 0..16{
         res[i] = _reverse_lookup(x[i]);
     }
-    println!("Reverse Sub byte result: {:02x?}",res);
     res
 }
 
@@ -173,7 +174,6 @@ pub fn _shift_row(chunk : [u8;16]) -> [u8;16]{
     res[1] = chunk[5];   res[5] = chunk[9];   res[9] = chunk[13];   res[13] = chunk[1];
     res[2] = chunk[10];   res[6] = chunk[14];   res[10] = chunk[2];   res[14] = chunk[6];
     res[3] = chunk[15];   res[7] = chunk[3];   res[11] = chunk[7];   res[15] = chunk[11];
-    println!("Shift row result: {:02x?}",res);
     res
 }
 pub fn _reverse_shift_row(chunk : [u8;16]) -> [u8;16]{
@@ -182,7 +182,6 @@ pub fn _reverse_shift_row(chunk : [u8;16]) -> [u8;16]{
     res[1] = chunk[13];   res[5] = chunk[1];   res[9] = chunk[5];   res[13] = chunk[9];
     res[2] = chunk[10];   res[6] = chunk[14];   res[10] = chunk[2];   res[14] = chunk[6];
     res[3] = chunk[7];   res[7] = chunk[11];   res[11] = chunk[15];   res[15] = chunk[3];
-    println!("reverse Shift row result: {:02x?}",res);
     res
 }
 
@@ -205,7 +204,6 @@ pub fn _mix_column(slice : [u8;16])-> [u8;16]{
             res[index*4 + i] = column[i];
         } 
     }
-    println!("Column mix result: {:02x?}",res);
     res
 }
 
@@ -225,7 +223,6 @@ pub fn _reverse_mix_column(slice : [u8;16])-> [u8;16]{
             res[index*4 + i] = column[i];
         } 
     }
-    println!("Reverse Column mix result: {:02x?}",res);
     res
 }
 
@@ -262,8 +259,6 @@ pub fn _generate_key(a:[u8;16])-> [[u8;16];11]{
             }
         }
     }
-    println!("{:02x?}",key[0]);
-    println!("{:02x?}",key[10]);
     key
 }
 

@@ -296,9 +296,10 @@ pub fn _decrypt_block(block: &[u8], key : [[u8;16];11])-> [u8;16]{
 }
 
 pub fn _encrypt(text : Vec<u8>, key : [u8;16]) -> Vec<u8>{
+    let content = _pkcs7_padding(text, 16);
     let _expanded_key = _generate_key(key);
     let mut res : Vec<u8> = Vec::new();
-    for (_index, chunk) in text.chunks(16).enumerate(){
+    for (_index, chunk) in content.chunks(16).enumerate(){
         let state = _encrypt_block(chunk, _expanded_key);
         res.extend(state);
     }
@@ -311,17 +312,15 @@ pub fn _decrypt(text : Vec<u8>, key : [u8;16]) -> Vec<u8>{
         let state = _decrypt_block(chunk, _expanded_key);
         res.extend(state);
     }
-    res
+    _pksc7_unpadding(res)
 }
 
 pub fn _aes_encrypt(text: Vec<u8>, key:[u8;16])-> String{
-    let content = _pkcs7_padding(text, 16);
-    let result = _encrypt(content, key);
+    let result = _encrypt(text, key);
     helper::_u8_to_hex(result)
 }
 pub fn _aes_decrypt(text: Vec<u8>, key: [u8;16]) -> String{
-    let mut result = _decrypt(text, key);
-    result = _pksc7_unpadding(result);
+    let result = _decrypt(text, key);
     String::from_utf8(result).unwrap()
 }
 

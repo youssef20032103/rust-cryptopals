@@ -1,3 +1,4 @@
+
 use std::collections::HashSet;
 use std::sync::OnceLock;
 
@@ -181,6 +182,63 @@ fn _decrypt_oracle() -> Vec<u8> {
     known
 }
 
+//-----------------------------------------------------------Challenge 13
+
+struct Profile {
+    email: String,
+    uid: String,
+    role: String,
+}
+
+fn _get_key_value(parsed: String) -> Profile{
+    let res : Vec<&str> = parsed.split('&').collect();
+    let mut items : Vec<String> = Vec::new();
+    for i in res {
+        let pair :Vec<&str>= i.split('=').collect();
+        items.push(pair[1].to_string());
+    }
+    Profile{email: items[0].clone(), uid: items[1].clone(), role: items[2].clone()}
+}
+
+fn _map_encode(profile : Profile) -> String{
+    format!("email={}&uid={}&role={}", profile.email, profile.uid, profile.role)
+}
+
+fn _profile_for(mut email:String) -> String{
+    email = email.replace('=', "").replace('&', "");
+    let p = Profile{email: email.clone(),
+                             uid:"10".to_string(),
+                             role: "user".to_string()};
+    
+    _map_encode(p)
+}
+
+fn _encrypt_profile(profile: String) -> (Vec<u8>, [u8;16]){
+    let cipher = profile.as_bytes().to_vec();
+    let key = _aes_key();
+    (aes_alg::_encrypt(cipher, key), key)
+}
+fn _decrpypt_profile(cipher: Vec<u8>, key: [u8;16])-> String{
+    let p = aes_alg::_aes_decrypt(cipher, key);
+    let res = _get_key_value(p);
+    _map_encode(res)
+}
+
+fn _attack_cipher()-> String{
+    let entry = "AAAAAAAAAAAAA".to_string();
+    let blocks = (_profile_for(entry)).as_bytes().to_vec();
+    let key = _aes_key();
+    let res = ((aes_alg::_encrypt(blocks, key))[..32]).to_vec();
+    let entry2 = "AAAAAAAAAAadmin\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b".to_string();
+    let blocks2 = (_profile_for(entry2)).as_bytes().to_vec();
+    let res2 = ((aes_alg::_encrypt(blocks2, key))[16..32]).to_vec();
+    let mut cipher = res.clone();
+    cipher.extend(res2);
+    _decrpypt_profile(cipher,key)
+}
+
+
+
 
 
 
@@ -228,11 +286,22 @@ mod tests {
     fn text_encryption(){
         println!("{}", String::from_utf8(_decrypt_oracle()).unwrap());
     }
+    #[test]
+    fn parse(){
+        println!("{}", _profile_for("yuna@gmail.com".to_string()));
+    }
+    #[test]
+    fn encrypt_decrypt(){
+        let pr = _profile_for("Yuna@gmail.com".to_string());
+        let encrypted = _encrypt_profile(pr);
+        let key = encrypted.1;
+        println!("(key = {:?},profile = {})", key, _decrpypt_profile(encrypted.0,encrypted.1) );
+    }
+    #[test]
+    fn attack(){
+        println!("{}", _attack_cipher());
+    }
 }
-
-
-
-
 
 
 

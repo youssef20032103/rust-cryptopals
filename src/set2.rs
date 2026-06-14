@@ -48,8 +48,6 @@ pub fn _cbc_file_decryption(file: &str, key: String) -> Result<String, String> {
 
 //-----------------------------------------------------------Challenge 11
 
-
-
 fn _aes_key()-> [u8;16]{
     let mut key  = [0u8;16];
     rand::fill(&mut key);
@@ -108,79 +106,53 @@ fn _get_key() -> &'static [u8;16] {
     _GLOBAL_KEY.get_or_init(|| _aes_key())
 }
 
-fn _buffer_encrypt(mut text: Vec<u8>)-> Vec<u8>{
+fn _buffer_encrypt(text: Vec<u8>)-> Vec<u8>{
     let s = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK";
-
     let suffix = helper::_base64_to_u8(s.to_string());
-    text.extend(suffix);
-    aes_alg::_encrypt(text, *_get_key())
-}
- 
-fn _figure_out_first_byte() -> u8{
-    let block = vec![b'A';15];
-    let mut first_byte = 0 as u8;
-    let res_block = _buffer_encrypt(block.clone());
-    for i in 0u8..=0xff{
-        let mut test_block = block.clone();
-        test_block.push(i);
-        if _buffer_encrypt(test_block)[..16] == res_block[..16]{
-            first_byte = i;
-            break;
-        }
-    }
-    first_byte
-}
-fn _figure_out_first_block() -> Vec<u8> {
-    let mut known: Vec<u8> = Vec::new();
-    for i in 0..16 {
-        let padding = vec![b'A'; 15 - i];
-        let target = _buffer_encrypt(padding.clone())[..16].to_vec();
-        
-        let mut found = false;
-        for j in 0u8..=0xff {
-            let mut test_block = padding.clone();
-            test_block.extend(&known);
-            test_block.push(j);
-            if _buffer_encrypt(test_block)[..16] == target {
-                known.push(j);
-                found = true;
-                break;
-            }
-        }
-        if !found { break; }
-    }
-    known
+    let mut data = text.clone();
+    data.extend(suffix);
+    let key = *_get_key();
+    aes_alg::_encrypt(data, key)
 }
 
-fn _decrypt_oracle() -> Vec<u8> {
-    let num_blocks = _buffer_encrypt(vec![]).len() / 16;
-    let mut known: Vec<u8> = Vec::new();
-    
-    for index in 0..num_blocks {
-        for i in 0..16 {
-            let padding = vec![b'A'; 15 - i];
-            let target = _buffer_encrypt(padding.clone())[(16*index)..(16*(index+1))].to_vec();
-            
-            let mut prefix: Vec<u8> = Vec::new();
-            prefix.extend(&padding);
-            prefix.extend(&known);
-            let prefix = prefix[prefix.len() - 15..].to_vec();
-            
-            let mut found = false;
-            for j in 0u8..=0xff {
-                let mut test_block = prefix.clone();
-                test_block.push(j);
-                if _buffer_encrypt(test_block)[..16] == target {
-                    known.push(j);
-                    found = true;
-                    break;
-                }
-            }
-            if !found { break; }
+fn _decrypt_next_byte(recovered: &[u8]) -> u8 {        //prefix + 38 As = 48 char
+    let block_num = recovered.len() / 16;       // block_num = 3
+    let index = recovered.len() % 16;           // index = 0
+    let pad_len = 15 - index;                   // pad = 15 As
+
+    let pad = vec![b'A'; pad_len];            // 15 As
+
+    let target = _buffer_encrypt(pad.clone()); 
+
+    for guess in 0u8..=255 {
+        let mut test = pad.clone();
+
+        test.extend_from_slice(recovered);
+        test.push(guess);
+
+        let encrypted = _buffer_encrypt(test);
+
+        if encrypted[16 * block_num..16 * (block_num + 1)]
+            == target[16 * block_num..16 * (block_num + 1)]
+        {
+            return guess;
         }
     }
-    known
+
+    panic!("No matching byte found");
 }
+
+fn _decrypt() -> Vec<u8> {
+    
+    let mut recovered = Vec::new();
+    for _ in 0..139 {
+        let byte = _decrypt_next_byte(&recovered);
+        recovered.push(byte);
+    }
+
+    recovered
+}
+
 
 //-----------------------------------------------------------Challenge 13
 
@@ -237,6 +209,130 @@ fn _attack_cipher()-> String{
     _decrpypt_profile(cipher,key)
 }
 
+//-----------------------------------------------------------Challenge 14
+static _PREFIX: OnceLock<[u8;17]> = OnceLock::new();
+fn _generate_prefix()-> [u8;17]{
+    let mut key  = [0u8;17];
+    rand::fill(&mut key);
+    key
+}
+fn _get_prefix() -> &'static [u8;17] {
+    _PREFIX.get_or_init(|| _generate_prefix())
+}
+
+
+fn _encrypt_oracle_14(text: Vec<u8>) -> Vec<u8>{
+    let pad = _get_prefix().to_vec();
+    let padded_text : Vec<u8> = [pad,text].concat();
+    _buffer_encrypt(padded_text)
+}
+
+fn _matrice_number(text: Vec<u8>) -> (bool, usize){
+    let encrypted = _encrypt_oracle_14(text.clone());
+    let chunks: Vec<&[u8]> = encrypted.chunks(16).collect();
+    for index in 0..chunks.len().saturating_sub(1){
+        if chunks[index] == chunks[index+1]{
+            return (true, index);
+        }
+    }
+    (false, 0)
+}
+
+fn _decrypt_next_byte_14(recovered: &[u8], offset:usize, offset_block:usize) -> u8 {        
+    let block_num = recovered.len()/16 + offset_block;       
+    let index = recovered.len() % 16;           
+    let pad_len = 15 - index;                   
+
+    let pad = vec![b'A'; pad_len + offset];            
+
+    let target = _encrypt_oracle_14(pad.clone()); 
+
+    for guess in 0u8..=255 {
+        let mut test = pad.clone();
+
+        test.extend_from_slice(recovered);
+        test.push(guess);
+
+        let encrypted = _encrypt_oracle_14(test);
+
+        if encrypted[16 * block_num..16 * (block_num + 1)]
+            == target[16 * block_num..16 * (block_num + 1)]
+        {
+            return guess;
+        }
+    }
+
+    panic!("No matching byte found");
+}
+
+
+
+
+fn _decrypt_14()-> Vec<u8>{
+    let mut offset  = 0;
+    let mut offset_block = 0;
+    for n in 0..32 {
+        let input = vec![b'A'; n + 32];
+        if _matrice_number(input.clone()).0 {
+            offset_block = _matrice_number(input.clone()).1;
+            offset = n  ;
+            break;
+        }
+    }
+    let mut recovered = Vec::new();
+    for _ in 0..139 {
+        let byte = _decrypt_next_byte_14(&recovered, offset, offset_block);
+        recovered.push(byte);
+    }
+
+    recovered
+    
+}
+
+
+//-----------------------------------------------------------Challenge 15
+fn _pkcs7_unpadding(padded: Vec<u8>) -> Result<Vec<u8>, String>{
+    let k = padded[padded.len()-1] as usize;
+    if k == 0 || k > 16 || k > padded.len() {
+        return Err("invalid padding".into());
+    }
+    for i in 0..k {
+        if padded[padded.len()-1-i] as usize != k {
+            return Err("invalid padding".into());
+        }
+    }
+    Ok(padded[..padded.len()-k].to_vec())
+}
+//-----------------------------------------------------------Challenge 16
+
+static _IV: OnceLock<[u8;16]> = OnceLock::new();
+fn _iv()-> [u8;16]{
+    let mut iv  = [0u8;16];
+    rand::fill(&mut iv);
+    iv
+}
+fn _get_iv() -> &'static [u8;16] {
+    _IV.get_or_init(|| _iv())
+}
+
+
+fn _cbc_flip_encrypt(text: Vec<u8>) -> Vec<u8>{
+    let mut data = "comment1=cooking%20MCs;userdata=".as_bytes().to_vec();
+    data.extend(text.into_iter()
+                    .filter(|&b| b != b';' && b != b'=')
+                    .collect::<Vec<u8>>());
+    data.extend(";comment2=%20like%20a%20pound%20of%20bacon".as_bytes().to_vec());
+    
+
+    cbc_alg::_encrypt(data, *_get_key(), *_get_iv())
+}
+
+
+
+
+
+
+
 
 
 
@@ -254,7 +350,8 @@ mod tests {
         let mut c: Vec<u8> = Vec::new();
         for i in 1..=32{
             c.push(b'A');
-            println!("Input len: {} => Cipher length: {}", i, _buffer_encrypt(c.clone()).len());
+            let res =_buffer_encrypt(c.clone());
+            println!("Input len: {} => Cipher length: {}", i, res.len());
         }
     }
     
@@ -275,16 +372,9 @@ mod tests {
         assert!(_ecb_or_no());
     }
     #[test]
-    fn incomplete_block_encryption(){
-        println!("{}",_figure_out_first_byte())
-    }
-    #[test]
-    fn block_encryption(){
-        println!("{}", String::from_utf8(_figure_out_first_block()).unwrap());
-    }
-    #[test]
     fn text_encryption(){
-        println!("{}", String::from_utf8(_decrypt_oracle()).unwrap());
+        let res = _decrypt();
+        println!("{}", String::from_utf8_lossy(&res));
     }
     #[test]
     fn parse(){
@@ -301,6 +391,13 @@ mod tests {
     fn attack(){
         println!("{}", _attack_cipher());
     }
+    #[test]
+    fn decrypt_oracle_14(){
+        let res = _decrypt_14();
+        println!("{}", String::from_utf8_lossy(&res));
+    }
+   
+    
 }
 
 
